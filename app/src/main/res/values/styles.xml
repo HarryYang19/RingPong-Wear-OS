@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AppTheme" parent="@android:style/Theme.DeviceDefault.NoActionBar">
+        <item name="android:colorAccent">#52F6C2</item>
+        <item name="android:windowBackground">#000000</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowSwipeToDismiss">false</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:fontFamily">sans</item>
+    </style>
+</resources>
