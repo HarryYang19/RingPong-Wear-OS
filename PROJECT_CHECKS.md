@@ -1,16 +1,23 @@
-# Project checks and known limits
+# Project checks — Ring Pong Wear OS 1.1.0
 
-## Static checks expected in the source bundle
+## Static checks to run before publishing
 
-- Manifest and style XML parse successfully.
-- Activity is exported with a launcher intent filter and watch-only feature declaration.
-- Minimum SDK is 30; Java/Kotlin bytecode target is 17.
-- Back handling includes both Wear swipe-to-dismiss theme configuration and Android Back callback handling.
-- Gameplay reads `AXIS_SCROLL` from generic motion input and has touch fallback.
-- Ball speed growth is capped, the ball is kept inside the arena after a hit, and best score is persisted.
-- CI explicitly installs Android SDK packages without the retired `tools` package.
+- Parse every Android XML resource/manifest file and verify the haptics permission is present.
+- Check the GitHub Actions workflow has a valid structure and explicitly installs Android SDK Platform 35, Build Tools 35.0.0, and Platform Tools, without requesting the retired `tools` package.
+- Verify source declarations for rotary `AXIS_SCROLL` input, the reversed direction constant, target-angle spring smoothing, fixed physics substeps, decaying ball curve, inner-face paddle collision, gentle vibration, local high-score storage, and the back-dismiss configuration remain present.
+- Run the Kotlin compiler against minimal local Android API stubs to catch Kotlin syntax and local type-flow issues (this is not a substitute for compiling against the real Android SDK).
+- Verify the ZIP can be read completely and includes the full project at `RingPongWear/`.
+- Incremented app metadata to version 1.1.0 / versionCode 2.
+
+## Version 1.1.0 changes
+
+- Reversed rotary input direction (`ROTARY_DIRECTION = -1f`).
+- Added a damped spring for paddle following, with angular-speed limiting.
+- Added 120 Hz maximum physics substeps and a subtle decaying ball curve after collisions.
+- Enlarged the arena, paddle stroke and HUD; switched to a monochrome black/white palette.
+- Moved collision detection to the ball touching the paddle's inner face and included rounded-end tolerance, reducing visible clipping/tunnelling.
+- Added a short low-amplitude vibration when a paddle return succeeds, with a device-tuned tick fallback when amplitude control is unavailable.
 
 ## Not claimed as tested here
 
-No Android SDK, Gradle installation, network access, emulator, or Galaxy Watch5 Pro is available in the authoring environment. Therefore the APK cannot be claimed as already compiled or hardware-verified. Run the included GitHub Actions workflow to confirm compilation, then test rotary direction/sensitivity and the Wear OS system-gesture behavior on the actual watch.
-- Kotlin Gradle Plugin 2.2.21 is selected to fit the documented Gradle 8.9 / AGP 8.7.3 compatibility range, rather than using an older Kotlin plugin outside its fully-supported AGP range.
+This environment has a JDK but no Android SDK, Android platform jar, Gradle installation, emulator or connected Galaxy Watch5 Pro. The Kotlin/Android build therefore cannot be certified as compiled or hardware-tested in this session. Static checks and offline physics/geometry checks can be performed, but the included GitHub Actions build and a real-watch test remain the final verification for compilation, Samsung rotary direction, perceived haptics and system-gesture behavior.
