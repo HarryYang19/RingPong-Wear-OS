@@ -1,4 +1,4 @@
-# Ring Pong Wear OS 1.2.0
+# Ring Pong Wear OS 1.2.1
 
 A small, single-screen circular Pong-style game written in Kotlin using the Android framework. Intended for round Wear OS watches such as the Samsung Galaxy Watch5 Pro.
 
@@ -7,10 +7,10 @@ A small, single-screen circular Pong-style game written in Kotlin using the Andr
 - Black background, a clean circular arena outline, a thick white arc paddle and a slightly larger solid-white ball.
 - Rotate the Watch5 Pro digital bezel to move the paddle. Rotary input direction remains inverted (`ROTARY_DIRECTION = -1f`) to match the corrected direction from the previous build.
 - Paddle motion is driven by angular momentum impulses. While the bezel is turning, impulses accelerate the paddle; after turning stops, it coasts briefly **in the same direction** and slows through drag. There is no spring pulling it backward and no elastic recoil.
-- Touch input never steers the paddle. The outer 30% radial annulus is treated as a virtual-bezel touch zone and is consumed without action. Only a tap in the inner 70% of the arena can start/restart the game.
+- Touch input never steers the paddle. The outer 30% radial annulus is treated as a virtual-bezel touch zone: each new touch-down gives one very soft haptic tick, but touch never steers the paddle. Only a tap in the inner 70% of the arena can start/restart the game.
 - Each successful return increases the score and gradually raises ball speed. The acceleration rate tapers after 20 points and again after 50 points so longer rallies remain more achievable.
 - Best score is stored locally on the watch. During play, the score is the only text shown; title, instructions and best-score text are hidden.
-- A short, low-amplitude haptic tick confirms each successful paddle collision. Vibration is optional and never blocks gameplay.
+- A short, low-amplitude haptic tick confirms each successful paddle collision. A separate, softer 8 ms / amplitude 22 tick acknowledges a touch-down in the virtual-bezel annulus. Vibration is optional and never blocks gameplay.
 - The display stays on while the game is open.
 
 ## Speed progression
@@ -25,9 +25,9 @@ Tuning constants are in `RingPongView.kt`:
 
 - `ROTARY_DIRECTION`: rotary direction (`-1f` for the corrected direction).
 - `ROTARY_RADIANS_PER_UNIT`: base sensitivity per rotary unit.
-- `ROTARY_INERTIA_GAIN` (12.5): angular impulse added for each rotary unit.
-- `PADDLE_DRAG` (11.5): how quickly forward momentum decays. Higher values shorten the coast; the paddle never snaps backward.
-- `MAX_PADDLE_ANGULAR_SPEED`: maximum angular speed.
+- `ROTARY_INERTIA_GAIN` (14.0): angular impulse added for each rotary unit.
+- `PADDLE_DRAG` (12.0): how quickly forward momentum decays. Higher values shorten the coast; the paddle never snaps backward.
+- `MAX_PADDLE_ANGULAR_SPEED` (13.0): maximum angular speed. The slightly higher gain and speed cap make the paddle respond faster; the small drag increase shortens its coast a little.
 
 ## Back gesture behavior
 

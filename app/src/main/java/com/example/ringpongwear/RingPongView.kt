@@ -345,6 +345,24 @@ class RingPongView(context: Context) : View(context) {
         }
     }
 
+    private fun triggerVirtualBezelFeedback() {
+        try {
+            val motor = vibrator
+            if (motor?.hasVibrator() == true) {
+                // A brief, softer tick acknowledges a virtual-bezel touch without
+                // competing with the slightly stronger ball/paddle collision haptic.
+                val effect = if (motor.hasAmplitudeControl()) {
+                    VibrationEffect.createOneShot(VIRTUAL_BEZEL_HAPTIC_DURATION_MS, VIRTUAL_BEZEL_HAPTIC_AMPLITUDE)
+                } else {
+                    VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK)
+                }
+                motor.vibrate(effect)
+            }
+        } catch (_: RuntimeException) {
+            // Haptics are optional; gameplay must continue if the device blocks vibration.
+        }
+    }
+
     private fun rotatePaddle(scrollAmount: Float) {
         if (!scrollAmount.isFinite() || abs(scrollAmount) < 0.0001f) return
         // Add angular momentum in the direction of rotation. Once input stops, drag
@@ -371,9 +389,11 @@ class RingPongView(context: Context) : View(context) {
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
-                // The outer annulus is the virtual-bezel zone: touch there is always
-                // consumed and never steers the paddle. Only an inner tap starts/restarts.
-                if (state != GameState.PLAYING && isInsideTouchStartZone(event.x, event.y)) {
+                // Touching the outer annulus gives one soft acknowledgement tick.
+                // It is still only a virtual-bezel zone: touch never steers the paddle.
+                if (isInVirtualBezelZone(event.x, event.y)) {
+                    triggerVirtualBezelFeedback()
+                } else if (state != GameState.PLAYING && isInsideTouchStartZone(event.x, event.y)) {
                     startGame()
                 }
                 return true
@@ -391,15 +411,23 @@ class RingPongView(context: Context) : View(context) {
         return radiusSquared < startRadius * startRadius
     }
 
+    private fun isInVirtualBezelZone(x: Float, y: Float): Boolean {
+        val dx = x - cx
+        val dy = y - cy
+        val radiusSquared = dx * dx + dy * dy
+        val bezelRadius = arenaRadius * TOUCH_START_RADIUS_FRACTION
+        return radiusSquared >= bezelRadius * bezelRadius
+    }
+
     companion object {
         private const val PREFS = "ring_pong_prefs"
         private const val KEY_BEST = "best_score"
         private const val ROTARY_RADIANS_PER_UNIT = 0.12f
         private const val MAX_ROTARY_UNITS_PER_EVENT = 2.0f
         private const val ROTARY_DIRECTION = -1f
-        private const val ROTARY_INERTIA_GAIN = 12.5f
-        private const val PADDLE_DRAG = 11.5f
-        private const val MAX_PADDLE_ANGULAR_SPEED = 11.5f
+        private const val ROTARY_INERTIA_GAIN = 14.0f
+        private const val PADDLE_DRAG = 12.0f
+        private const val MAX_PADDLE_ANGULAR_SPEED = 13.0f
         private const val TOUCH_START_RADIUS_FRACTION = 0.70f
         private const val MAX_PHYSICS_STEP = 1f / 120f
         // Preserve a lively opening, then taper the growth so 20–50 point rallies
@@ -413,5 +441,7 @@ class RingPongView(context: Context) : View(context) {
         private const val MAX_CURVE_RATE = 0.68f
         private const val HAPTIC_DURATION_MS = 12L
         private const val HAPTIC_AMPLITUDE = 38
+        private const val VIRTUAL_BEZEL_HAPTIC_DURATION_MS = 8L
+        private const val VIRTUAL_BEZEL_HAPTIC_AMPLITUDE = 22
     }
 }
