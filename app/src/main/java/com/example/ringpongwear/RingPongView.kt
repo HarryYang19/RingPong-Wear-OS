@@ -348,30 +348,30 @@ class RingPongView(context: Context) : View(context) {
 	private var lastBezelHapticAt = 0L
 	
 	private fun triggerVirtualBezelFeedback() {
-	    try {
-	        val motor = vibrator
-	        if (motor?.hasVibrator() == true) {
-	            val now = android.os.SystemClock.elapsedRealtime()
-	
-	            // 限制震动频率，避免连续旋转时变成一长串嗡鸣
-	            if (now - lastBezelHapticAt < 100L) return
-	            lastBezelHapticAt = now
-	
-	            val effect = if (motor.hasAmplitudeControl()) {
-                VibrationEffect.createOneShot(8L, 20)
-	            } else {
-	                VibrationEffect.createPredefined(
-	                    VibrationEffect.EFFECT_TICK
-	                )
-	            }
-	
-	            motor.vibrate(effect)
-	        }
-	    } catch (_: RuntimeException) {
-	        // Haptics are optional.
-	    }
-	}
+    	try {
+       		val motor = vibrator
+       		if (motor?.hasVibrator() == true) {
+				val now = android.os.SystemClock.elapsedRealtime()
+				
+            	if (now - lastBezelHapticAt < 40L) return
+           		lastBezelHapticAt = now
 
+            	val effect = if (motor.hasAmplitudeControl()) {
+					VibrationEffect.createOneShot(7L, 25)
+           		} else {
+					VibrationEffect.createOneShot(
+                    7L,
+                    VibrationEffect.DEFAULT_AMPLITUDE
+				)
+				}
+
+				motor.vibrate(effect)
+			}
+		} catch (_: RuntimeException) {
+        // Haptics are optional.
+		}
+	}
+	
     private fun rotatePaddle(scrollAmount: Float) {
         if (!scrollAmount.isFinite() || abs(scrollAmount) < 0.0001f) return
         // Add angular momentum in the direction of rotation. Once input stops, drag
