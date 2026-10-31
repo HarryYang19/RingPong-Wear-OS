@@ -354,11 +354,11 @@ class RingPongView(context: Context) : View(context) {
 	            val now = android.os.SystemClock.elapsedRealtime()
 	
 	            // 限制震动频率，避免连续旋转时变成一长串嗡鸣
-	            if (now - lastBezelHapticAt < 70L) return
+	            if (now - lastBezelHapticAt < 100L) return
 	            lastBezelHapticAt = now
 	
 	            val effect = if (motor.hasAmplitudeControl()) {
-                VibrationEffect.createOneShot(18L, 25)
+                VibrationEffect.createOneShot(8L, 20)
 	            } else {
 	                VibrationEffect.createPredefined(
 	                    VibrationEffect.EFFECT_TICK
