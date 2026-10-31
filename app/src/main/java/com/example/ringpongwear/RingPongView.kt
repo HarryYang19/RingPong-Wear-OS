@@ -45,9 +45,9 @@ class RingPongView(context: Context) : View(context) {
     private var collisionRadius = 0f
     private val paddleHalfAngle = (25.0 * PI / 180.0).toFloat()
 
-    // Separate target/current angles give rotary input a spring-like, eased response.
+    // Rotary impulses create a little forward carry: the paddle coasts in the
+    // direction of the last turn and is slowed only by drag (never pulled backward).
     private var paddleAngle = (-PI / 2.0).toFloat()
-    private var targetPaddleAngle = paddleAngle
     private var paddleAngularVelocity = 0f
 
     private var ballX = 0f
@@ -64,12 +64,6 @@ class RingPongView(context: Context) : View(context) {
         strokeWidth = dp(1.5f)
         color = Color.rgb(190, 190, 190)
     }
-    private val tickPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = dp(1.4f)
-        strokeCap = Paint.Cap.ROUND
-        color = Color.rgb(115, 115, 115)
-    }
     private val paddlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
@@ -78,15 +72,6 @@ class RingPongView(context: Context) : View(context) {
     private val ballPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
         color = Color.WHITE
-    }
-    private val ballCorePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.FILL
-        color = Color.BLACK
-    }
-    private val ballHaloPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        color = Color.WHITE
-        strokeWidth = dp(1.5f)
     }
     private val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.rgb(190, 190, 190)
@@ -116,7 +101,7 @@ class RingPongView(context: Context) : View(context) {
         isFocusable = true
         isFocusableInTouchMode = true
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
-        contentDescription = "Ring Pong. Rotate the watch bezel to move the paddle. Tap to start."
+        contentDescription = "Ring Pong. Rotate the watch bezel to move the paddle. Tap the center to start."
         setLayerType(LAYER_TYPE_HARDWARE, null)
     }
 
@@ -130,7 +115,7 @@ class RingPongView(context: Context) : View(context) {
 
         // Use nearly all of the circular display while keeping a safe margin from its edge.
         arenaRadius = minDimension * 0.46f
-        ballRadius = max(dp(5.5f), minDimension * 0.017f)
+        ballRadius = max(dp(6.2f), minDimension * 0.019f)
         paddleStroke = max(dp(11f), minDimension * 0.042f)
         // Keep the outside of the thick paddle close to the arena rim.
         paddleRadius = arenaRadius - paddleStroke / 2f - max(dp(2f), ballRadius * 0.55f)
@@ -163,8 +148,7 @@ class RingPongView(context: Context) : View(context) {
         drawBall(canvas)
         drawHud(canvas)
 
-        val paddleStillMoving = abs(normalizeAngle(targetPaddleAngle - paddleAngle)) > 0.0015f ||
-            abs(paddleAngularVelocity) > 0.008f
+        val paddleStillMoving = abs(paddleAngularVelocity) > 0.012f
         if (state == GameState.PLAYING || paddleStillMoving) {
             postInvalidateOnAnimation()
         } else {
@@ -175,20 +159,6 @@ class RingPongView(context: Context) : View(context) {
     private fun drawArena(canvas: Canvas) {
         arenaPaint.strokeWidth = dp(1.35f)
         canvas.drawCircle(cx, cy, arenaRadius - arenaPaint.strokeWidth / 2f, arenaPaint)
-        val tickCount = 40
-        for (i in 0 until tickCount) {
-            val a = (2.0 * PI * i / tickCount).toFloat()
-            val length = if (i % 5 == 0) dp(7f) else dp(3.5f)
-            val outer = arenaRadius - dp(2f)
-            val inner = outer - length
-            canvas.drawLine(
-                cx + cos(a) * inner,
-                cy + sin(a) * inner,
-                cx + cos(a) * outer,
-                cy + sin(a) * outer,
-                tickPaint
-            )
-        }
     }
 
     private fun drawPaddle(canvas: Canvas) {
@@ -199,10 +169,8 @@ class RingPongView(context: Context) : View(context) {
     }
 
     private fun drawBall(canvas: Canvas) {
-        // A white ball with a small black center stays distinct from the thick white paddle.
-        canvas.drawCircle(ballX, ballY, ballRadius + dp(1.5f), ballHaloPaint)
+        // One slightly enlarged solid-white disk for an unambiguous ball silhouette.
         canvas.drawCircle(ballX, ballY, ballRadius, ballPaint)
-        canvas.drawCircle(ballX, ballY, max(dp(1.6f), ballRadius * 0.27f), ballCorePaint)
     }
 
     private fun drawHud(canvas: Canvas) {
@@ -211,23 +179,25 @@ class RingPongView(context: Context) : View(context) {
         hintPaint.textSize = dp(10.5f)
         subHintPaint.textSize = dp(9.5f)
 
-        canvas.drawText("RING PONG", cx, cy - arenaRadius * 0.47f, titlePaint)
-        canvas.drawText(score.toString(), cx, cy - arenaRadius * 0.265f, scorePaint)
-        titlePaint.textSize = dp(8.8f)
-        canvas.drawText("BEST  $bestScore", cx, cy - arenaRadius * 0.17f, titlePaint)
+        if (state == GameState.PLAYING) {
+            // Once a rally starts, the score is the only text left on screen.
+            canvas.drawText(score.toString(), cx, cy - arenaRadius * 0.43f, scorePaint)
+            return
+        }
 
+        canvas.drawText("RING PONG", cx, cy - arenaRadius * 0.42f, titlePaint)
+        titlePaint.textSize = dp(9.5f)
+        canvas.drawText("BEST  $bestScore", cx, cy - arenaRadius * 0.22f, titlePaint)
         when (state) {
             GameState.READY -> {
-                canvas.drawText("ROTATE BEZEL", cx, cy + arenaRadius * 0.49f, hintPaint)
-                canvas.drawText("TAP TO START", cx, cy + arenaRadius * 0.61f, subHintPaint)
-            }
-            GameState.PLAYING -> {
-                canvas.drawText("ROTATE TO MOVE", cx, cy + arenaRadius * 0.60f, subHintPaint)
+                canvas.drawText("ROTATE TO MOVE", cx, cy + arenaRadius * 0.48f, hintPaint)
+                canvas.drawText("TAP CENTER TO START", cx, cy + arenaRadius * 0.60f, subHintPaint)
             }
             GameState.GAME_OVER -> {
                 canvas.drawText("GAME OVER", cx, cy + arenaRadius * 0.43f, hintPaint)
-                canvas.drawText("TAP TO PLAY AGAIN", cx, cy + arenaRadius * 0.57f, subHintPaint)
+                canvas.drawText("TAP CENTER TO RETRY", cx, cy + arenaRadius * 0.57f, subHintPaint)
             }
+            GameState.PLAYING -> Unit
         }
     }
 
@@ -249,18 +219,21 @@ class RingPongView(context: Context) : View(context) {
 
     private fun updatePaddle(dt: Float) {
         if (dt <= 0f) return
-        val error = normalizeAngle(targetPaddleAngle - paddleAngle)
-        if (abs(error) < 0.0015f && abs(paddleAngularVelocity) < 0.008f) {
-            paddleAngle = targetPaddleAngle
-            paddleAngularVelocity = 0f
-            return
-        }
+        // Exponential drag lets the paddle coast forward, then settle naturally.
+        // There is no target spring, so drag alone can never reverse its direction.
+        paddleAngle += paddleAngularVelocity * dt
+        paddleAngle = wrapAngle(paddleAngle)
+        paddleAngularVelocity *= exp(-PADDLE_DRAG * dt)
+        if (abs(paddleAngularVelocity) < 0.012f) paddleAngularVelocity = 0f
+    }
 
-        // A damped spring gives the paddle a gentle, responsive elastic follow-through.
-        val acceleration = error * PADDLE_SPRING - paddleAngularVelocity * PADDLE_DAMPING
-        paddleAngularVelocity = (paddleAngularVelocity + acceleration * dt)
-            .coerceIn(-MAX_PADDLE_ANGULAR_SPEED, MAX_PADDLE_ANGULAR_SPEED)
-        paddleAngle = normalizeAngle(paddleAngle + paddleAngularVelocity * dt)
+    private fun normalizeAngle(angle: Float): Float = atan2(sin(angle), cos(angle))
+
+    private fun wrapAngle(angle: Float): Float {
+        var wrapped = angle
+        while (wrapped > PI.toFloat()) wrapped -= (2.0 * PI).toFloat()
+        while (wrapped < -PI.toFloat()) wrapped += (2.0 * PI).toFloat()
+        return wrapped
     }
 
     private fun updateGame(dt: Float) {
@@ -326,7 +299,12 @@ class RingPongView(context: Context) : View(context) {
 
         score++
         triggerCollisionFeedback()
-        val speed = min(sqrt(velocityX * velocityX + velocityY * velocityY) * SPEED_MULTIPLIER, maxSpeed)
+        val speedMultiplier = when {
+            score <= SPEED_EASE_SCORE -> SPEED_MULTIPLIER_EARLY
+            score <= SPEED_EASE_SCORE_2 -> SPEED_MULTIPLIER_MIDDLE
+            else -> SPEED_MULTIPLIER_LATE
+        }
+        val speed = min(sqrt(velocityX * velocityX + velocityY * velocityY) * speedMultiplier, maxSpeed)
         val offset = (angleDelta / paddleHalfAngle).coerceIn(-1f, 1f)
         // Send the ball back inward and make the impact point affect both angle and spin.
         val tx = -ny
@@ -367,14 +345,14 @@ class RingPongView(context: Context) : View(context) {
         }
     }
 
-    private fun normalizeAngle(angle: Float): Float = atan2(sin(angle), cos(angle))
-
     private fun rotatePaddle(scrollAmount: Float) {
         if (!scrollAmount.isFinite() || abs(scrollAmount) < 0.0001f) return
-        // Samsung bezel direction is inverted relative to the prior build; reverse it here.
-        val angleDelta = (scrollAmount * ROTARY_RADIANS_PER_UNIT)
-            .coerceIn(-MAX_ROTARY_STEP, MAX_ROTARY_STEP)
-        targetPaddleAngle = normalizeAngle(targetPaddleAngle + angleDelta * ROTARY_DIRECTION)
+        // Add angular momentum in the direction of rotation. Once input stops, drag
+        // carries the paddle forward briefly and smoothly; there is no spring recoil.
+        val units = scrollAmount.coerceIn(-MAX_ROTARY_UNITS_PER_EVENT, MAX_ROTARY_UNITS_PER_EVENT)
+        val angularImpulse = units * ROTARY_RADIANS_PER_UNIT * ROTARY_INERTIA_GAIN * ROTARY_DIRECTION
+        paddleAngularVelocity = (paddleAngularVelocity + angularImpulse)
+            .coerceIn(-MAX_PADDLE_ANGULAR_SPEED, MAX_PADDLE_ANGULAR_SPEED)
         invalidate()
     }
 
@@ -393,44 +371,44 @@ class RingPongView(context: Context) : View(context) {
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
-                if (state != GameState.PLAYING) {
+                // The outer annulus is the virtual-bezel zone: touch there is always
+                // consumed and never steers the paddle. Only an inner tap starts/restarts.
+                if (state != GameState.PLAYING && isInsideTouchStartZone(event.x, event.y)) {
                     startGame()
-                } else {
-                    movePaddleFromTouch(event.x, event.y)
                 }
                 return true
             }
-            MotionEvent.ACTION_MOVE -> {
-                if (state == GameState.PLAYING) movePaddleFromTouch(event.x, event.y)
-                return true
-            }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> return true
+            MotionEvent.ACTION_MOVE, MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> return true
         }
         return true
     }
 
-    private fun movePaddleFromTouch(x: Float, y: Float) {
+    private fun isInsideTouchStartZone(x: Float, y: Float): Boolean {
         val dx = x - cx
         val dy = y - cy
-        val radius = sqrt(dx * dx + dy * dy)
-        // Touch is a fallback; keep central taps available and use the outer ring to aim.
-        if (radius >= arenaRadius * 0.52f) {
-            targetPaddleAngle = atan2(dy, dx)
-            invalidate()
-        }
+        val radiusSquared = dx * dx + dy * dy
+        val startRadius = arenaRadius * TOUCH_START_RADIUS_FRACTION
+        return radiusSquared < startRadius * startRadius
     }
 
     companion object {
         private const val PREFS = "ring_pong_prefs"
         private const val KEY_BEST = "best_score"
         private const val ROTARY_RADIANS_PER_UNIT = 0.12f
-        private const val MAX_ROTARY_STEP = 0.45f
+        private const val MAX_ROTARY_UNITS_PER_EVENT = 2.0f
         private const val ROTARY_DIRECTION = -1f
-        private const val PADDLE_SPRING = 82f
-        private const val PADDLE_DAMPING = 13.5f
-        private const val MAX_PADDLE_ANGULAR_SPEED = 7.5f
+        private const val ROTARY_INERTIA_GAIN = 12.5f
+        private const val PADDLE_DRAG = 11.5f
+        private const val MAX_PADDLE_ANGULAR_SPEED = 11.5f
+        private const val TOUCH_START_RADIUS_FRACTION = 0.70f
         private const val MAX_PHYSICS_STEP = 1f / 120f
-        private const val SPEED_MULTIPLIER = 1.035f
+        // Preserve a lively opening, then taper the growth so 20–50 point rallies
+        // remain achievable. The rate tapers again beyond 50 for longer games.
+        private const val SPEED_EASE_SCORE = 20
+        private const val SPEED_EASE_SCORE_2 = 50
+        private const val SPEED_MULTIPLIER_EARLY = 1.035f
+        private const val SPEED_MULTIPLIER_MIDDLE = 1.008f
+        private const val SPEED_MULTIPLIER_LATE = 1.0045f
         private const val CURVE_DECAY = 1.55f
         private const val MAX_CURVE_RATE = 0.68f
         private const val HAPTIC_DURATION_MS = 12L
