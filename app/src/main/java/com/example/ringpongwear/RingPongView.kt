@@ -358,7 +358,7 @@ class RingPongView(context: Context) : View(context) {
 	            lastBezelHapticAt = now
 	
 	            val effect = if (motor.hasAmplitudeControl()) {
-                VibrationEffect.createOneShot(18L, 110)
+                VibrationEffect.createOneShot(9L, 75)
 	            } else {
 	                VibrationEffect.createPredefined(
 	                    VibrationEffect.EFFECT_TICK
