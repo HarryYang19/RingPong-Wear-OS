@@ -345,38 +345,28 @@ class RingPongView(context: Context) : View(context) {
         }
     }
 
-	private var lastBezelHapticAt = 0L
-	
-	private fun triggerVirtualBezelFeedback() {
-    	try {
-       		val motor = vibrator
-       		if (motor?.hasVibrator() == true) {
-				val now = android.os.SystemClock.elapsedRealtime()
-				
-            	if (now - lastBezelHapticAt < 40L) return
-           		lastBezelHapticAt = now
+    private fun triggerVirtualBezelFeedback() {
+        try {
+            val motor = vibrator
+            if (motor?.hasVibrator() == true) {
+                // A brief, softer tick acknowledges a virtual-bezel touch without
+                // competing with the slightly stronger ball/paddle collision haptic.
+                val effect = if (motor.hasAmplitudeControl()) {
+                    VibrationEffect.createOneShot(VIRTUAL_BEZEL_HAPTIC_DURATION_MS, VIRTUAL_BEZEL_HAPTIC_AMPLITUDE)
+                } else {
+                    VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK)
+                }
+                motor.vibrate(effect)
+            }
+        } catch (_: RuntimeException) {
+            // Haptics are optional; gameplay must continue if the device blocks vibration.
+        }
+    }
 
-            	val effect = if (motor.hasAmplitudeControl()) {
-					VibrationEffect.createOneShot(7L, 25)
-           		} else {
-					VibrationEffect.createOneShot(
-                    7L,
-                    VibrationEffect.DEFAULT_AMPLITUDE
-				)
-				}
-
-				motor.vibrate(effect)
-			}
-		} catch (_: RuntimeException) {
-        // Haptics are optional.
-		}
-	}
-	
     private fun rotatePaddle(scrollAmount: Float) {
         if (!scrollAmount.isFinite() || abs(scrollAmount) < 0.0001f) return
         // Add angular momentum in the direction of rotation. Once input stops, drag
         // carries the paddle forward briefly and smoothly; there is no spring recoil.
-		triggerVirtualBezelFeedback()
         val units = scrollAmount.coerceIn(-MAX_ROTARY_UNITS_PER_EVENT, MAX_ROTARY_UNITS_PER_EVENT)
         val angularImpulse = units * ROTARY_RADIANS_PER_UNIT * ROTARY_INERTIA_GAIN * ROTARY_DIRECTION
         paddleAngularVelocity = (paddleAngularVelocity + angularImpulse)
@@ -452,6 +442,6 @@ class RingPongView(context: Context) : View(context) {
         private const val HAPTIC_DURATION_MS = 12L
         private const val HAPTIC_AMPLITUDE = 38
         private const val VIRTUAL_BEZEL_HAPTIC_DURATION_MS = 8L
-        private const val VIRTUAL_BEZEL_HAPTIC_AMPLITUDE = 22
+        private const val VIRTUAL_BEZEL_HAPTIC_AMPLITUDE = 45
     }
 }
