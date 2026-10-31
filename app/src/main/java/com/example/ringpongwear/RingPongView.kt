@@ -345,23 +345,32 @@ class RingPongView(context: Context) : View(context) {
         }
     }
 
-    private fun triggerVirtualBezelFeedback() {
-        try {
-            val motor = vibrator
-            if (motor?.hasVibrator() == true) {
-                // A brief, softer tick acknowledges a virtual-bezel touch without
-                // competing with the slightly stronger ball/paddle collision haptic.
-                val effect = if (motor.hasAmplitudeControl()) {
-                    VibrationEffect.createOneShot(VIRTUAL_BEZEL_HAPTIC_DURATION_MS, VIRTUAL_BEZEL_HAPTIC_AMPLITUDE)
-                } else {
-                    VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK)
-                }
-                motor.vibrate(effect)
-            }
-        } catch (_: RuntimeException) {
-            // Haptics are optional; gameplay must continue if the device blocks vibration.
-        }
-    }
+	private var lastBezelHapticAt = 0L
+	
+	private fun triggerVirtualBezelFeedback() {
+	    try {
+	        val motor = vibrator
+	        if (motor?.hasVibrator() == true) {
+	            val now = android.os.SystemClock.elapsedRealtime()
+	
+	            // 限制震动频率，避免连续旋转时变成一长串嗡鸣
+	            if (now - lastBezelHapticAt < 70L) return
+	            lastBezelHapticAt = now
+	
+	            val effect = if (motor.hasAmplitudeControl()) {
+                VibrationEffect.createOneShot(18L, 110)
+	            } else {
+	                VibrationEffect.createPredefined(
+	                    VibrationEffect.EFFECT_TICK
+	                )
+	            }
+	
+	            motor.vibrate(effect)
+	        }
+	    } catch (_: RuntimeException) {
+	        // Haptics are optional.
+	    }
+	}
 
     private fun rotatePaddle(scrollAmount: Float) {
         if (!scrollAmount.isFinite() || abs(scrollAmount) < 0.0001f) return
