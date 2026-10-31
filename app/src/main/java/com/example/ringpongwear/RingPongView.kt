@@ -376,6 +376,7 @@ class RingPongView(context: Context) : View(context) {
         if (!scrollAmount.isFinite() || abs(scrollAmount) < 0.0001f) return
         // Add angular momentum in the direction of rotation. Once input stops, drag
         // carries the paddle forward briefly and smoothly; there is no spring recoil.
+		triggerVirtualBezelFeedback()
         val units = scrollAmount.coerceIn(-MAX_ROTARY_UNITS_PER_EVENT, MAX_ROTARY_UNITS_PER_EVENT)
         val angularImpulse = units * ROTARY_RADIANS_PER_UNIT * ROTARY_INERTIA_GAIN * ROTARY_DIRECTION
         paddleAngularVelocity = (paddleAngularVelocity + angularImpulse)
